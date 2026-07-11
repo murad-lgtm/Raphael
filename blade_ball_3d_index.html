@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Blade Ball 3D</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#07101f;font-family:Arial,Helvetica,sans-serif;color:#fff}
+#game{position:fixed;inset:0}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:10px;flex-wrap:wrap}
+.pill{background:rgba(5,10,24,.78);border:1px solid rgba(255,255,255,.3);padding:9px 13px;border-radius:999px;font-weight:800;backdrop-filter:blur(6px)}
+#msg{position:absolute;left:50%;top:12%;transform:translateX(-50%);font-size:clamp(28px,6vw,64px);font-weight:900;text-shadow:0 4px 14px #000;text-align:center}
+#buttons{position:absolute;right:12px;bottom:16px;display:flex;gap:10px;pointer-events:auto}
+#buttons button{width:76px;height:76px;border-radius:50%;border:2px solid #fff;color:#fff;font-weight:900;font-size:13px;background:rgba(22,31,68,.9);box-shadow:0 5px 0 rgba(0,0,0,.45);touch-action:none}
+#attack{background:rgba(255,62,86,.92)!important}
+#power{background:rgba(133,69,255,.92)!important}
+#shoot{background:rgba(27,180,255,.92)!important}
+#shopBtn{position:absolute;left:12px;top:68px;pointer-events:auto}
+#shopBtn button{padding:12px 18px;border:0;border-radius:12px;background:#ffd23f;font-weight:900}
+#joy{position:absolute;left:0;bottom:0;width:45%;height:45%;pointer-events:auto;touch-action:none}
+#base,#knob{display:none;position:absolute;border-radius:50%}
+#base{width:120px;height:120px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35)}
+#knob{width:56px;height:56px;background:rgba(255,255,255,.6)}
+#menu,#shop,#end{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at top,#243878,#090e20 62%,#03050b);z-index:10}
+.panel{width:min(1050px,94vw);max-height:90vh;overflow:auto;background:rgba(8,13,31,.94);border:2px solid #3b56a4;border-radius:22px;padding:18px;box-shadow:0 0 50px rgba(71,100,255,.28)}
+h1{margin:0;text-align:center;font-size:clamp(44px,8vw,92px);font-style:italic;letter-spacing:-3px;text-shadow:0 4px 0 #6b0011,0 0 24px #ff3553}
+.sub{text-align:center;color:#b6c3ec;margin:8px 0 18px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card,.sword{background:linear-gradient(#1c2856,#0e1532);border:2px solid #38509c;border-radius:16px;padding:12px;cursor:pointer}
+.card.sel,.sword.sel{border-color:#fff;box-shadow:0 0 18px rgba(255,255,255,.28)}
+.avatar{height:100px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:50px;background:radial-gradient(circle,rgba(255,255,255,.15),rgba(0,0,0,.18))}
+.card h3,.sword h3{margin:8px 0 4px}
+.small{font-size:13px;color:#afbbe1;line-height:1.35}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.btn{border:0;border-radius:14px;padding:14px 24px;font-weight:900;font-size:18px;cursor:pointer}
+.gold{background:linear-gradient(#ffe96a,#ffae00);color:#191100;box-shadow:0 5px 0 #8b5200}
+.dark{background:#151d40;color:#fff;border:1px solid #4560b4}
+#shop{display:none}
+#end{display:none;background:rgba(2,5,12,.78)}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}#buttons button{width:68px;height:68px}.top{gap:6px}.pill{padding:7px 10px;font-size:13px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud">
+  <div class="top">
+    <div class="pill" id="heroHud">Hero</div>
+    <div class="pill" id="swordHud">Sword</div>
+    <div class="pill" id="coinsHud">Coins: 0</div>
+    <div class="pill" id="npcHud">NPCs: 0</div>
+    <div class="pill" id="hpHud">HP: 100</div>
+  </div>
+  <div id="msg"></div>
+  <div id="shopBtn"><button onclick="openShop()">SHOP</button></div>
+  <div id="joy"><div id="base"></div><div id="knob"></div></div>
+  <div id="buttons">
+    <button id="dash">DASH</button>
+    <button id="attack">HIT</button>
+    <button id="power">POWER</button>
+    <button id="shoot">SHOT</button>
+  </div>
+</div>
+
+<div id="menu">
+  <div class="panel">
+    <h1>BLADE BALL 3D</h1>
+    <div class="sub">Third-person arena combat with moving NPCs, swords, powers, coins, and a shop.</div>
+    <div class="grid" id="heroGrid"></div>
+    <div class="actions">
+      <button class="btn gold" id="play">PLAY</button>
+    </div>
+    <div class="small" style="text-align:center;margin-top:12px">WASD / arrows to move · Space to hit · Shift to dash · E power · Q shot · Touch controls included</div>
+  </div>
+</div>
+
+<div id="shop">
+  <div class="panel">
+    <h2 style="margin-top:0">Sword Shop</h2>
+    <div class="small">Win coins by beating NPCs. Better swords have more reach and damage.</div>
+    <div class="grid" id="swordGrid" style="margin-top:12px"></div>
+    <div class="actions">
+      <button class="btn dark" onclick="closeShop()">BACK</button>
+    </div>
+  </div>
+</div>
+
+<div id="end">
+  <div class="panel" style="max-width:520px;text-align:center">
+    <h2 id="endTitle" style="font-size:42px;margin:0 0 8px">YOU WIN</h2>
+    <div id="endText" class="sub"></div>
+    <div class="actions">
+      <button class="btn gold" onclick="restartGame()">PLAY AGAIN</button>
+      <button class="btn dark" onclick="backToMenu()">MENU</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
+<script>
+const heroes=[
+{id:'light',name:'Lightning Hero',icon:'⚡',color:0xffd23f,speed:8.5,power:'Thunder Burst'},
+{id:'galaxy',name:'Galaxy Person',icon:'🌌',color:0xa55cff,speed:7.8,power:'Galaxy Warp'},
+{id:'yin',name:'Yin Yang',icon:'☯',color:0xf3f3f3,speed:8.0,power:'Balance Spin'},
+{id:'void',name:'Void Reaper',icon:'🌑',color:0x6f39ff,speed:7.7,power:'Void Cut'},
+{id:'angel',name:'Golden Angel',icon:'✨',color:0xffc928,speed:8.2,power:'Angel Guard'},
+{id:'ghost',name:'Ghost Blade',icon:'👻',color:0x7de5e1,speed:7.6,power:'Soul Fire'},
+{id:'ninja',name:'Blue Ninja',icon:'🥷',color:0x3db8ff,speed:8.6,power:'Ninja Storm'},
+{id:'eagle',name:'Patriot Eagle',icon:'🦅',color:0xffffff,speed:7.4,power:'Eagle Rush'},
+{id:'knight',name:'Gold Knight',icon:'🛡️',color:0xffb347,speed:7.1,power:'Shield Charge'}
+];
+const swords=[
+{id:'basic',name:'Basic Blade',cost:0,range:2.8,damage:18,color:0xffffff},
+{id:'ninja',name:'Ninja Sword',cost:50,range:3.2,damage:25,color:0xffe266},
+{id:'void',name:'Void Edge',cost:120,range:3.7,damage:32,color:0xb66cff},
+{id:'angel',name:'Angel Sword',cost:220,range:4.2,damage:40,color:0xffd54a},
+{id:'ghost',name:'Ghost Katana',cost:380,range:4.7,damage:48,color:0x84fff8}
+];
+const KEY='blade_ball_3d_save';
+let save=JSON.parse(localStorage.getItem(KEY)||'null')||{coins:0,owned:['basic'],sword:'basic',hero:'light'};
+let selectedHero=Math.max(0,heroes.findIndex(h=>h.id===save.hero));
+let scene,camera,renderer,clock,player,ball,npcs=[],shots=[],effects=[],running=false,keys={},joy={x:0,y:0},msgTimer;
+const heroGrid=document.getElementById('heroGrid'), swordGrid=document.getElementById('swordGrid');
+const heroHud=document.getElementById('heroHud'),swordHud=document.getElementById('swordHud'),coinsHud=document.getElementById('coinsHud'),npcHud=document.getElementById('npcHud'),hpHud=document.getElementById('hpHud'),msg=document.getElementById('msg');
+
+function persist(){localStorage.setItem(KEY,JSON.stringify(save))}
+function currentSword(){return swords.find(s=>s.id===save.sword)||swords[0]}
+function renderMenu(){
+ heroGrid.innerHTML='';
+ heroes.forEach((h,i)=>{const d=document.createElement('div');d.className='card'+(i===selectedHero?' sel':'');d.innerHTML=`<div class="avatar">${h.icon}</div><h3>${h.name}</h3><div class="small">Speed: ${h.speed}<br>Power: ${h.power}</div>`;d.onclick=()=>{selectedHero=i;save.hero=h.id;persist();renderMenu()};heroGrid.appendChild(d)});
+ renderShop();
+}
+function renderShop(){
+ swordGrid.innerHTML='';
+ swords.forEach(s=>{const owned=save.owned.includes(s.id),eq=save.sword===s.id;const d=document.createElement('div');d.className='sword'+(eq?' sel':'');d.innerHTML=`<h3>${s.name}</h3><div class="small">Cost: ${s.cost}<br>Range: ${s.range}<br>Damage: ${s.damage}</div>`;const b=document.createElement('button');b.className='btn '+(owned?'dark':'gold');b.style.marginTop='10px';b.textContent=eq?'EQUIPPED':owned?'EQUIP':'BUY';b.onclick=()=>{if(!owned){if(save.coins<s.cost){alert('Not enough coins');return}save.coins-=s.cost;save.owned.push(s.id)}save.sword=s.id;persist();renderShop();updateHud()};d.appendChild(b);swordGrid.appendChild(d)})
+}
+function openShop(){document.getElementById('shop').style.display='flex';renderShop()}
+function closeShop(){document.getElementById('shop').style.display='none'}
+function showMessage(t,ms=700,c='#fff'){msg.textContent=t;msg.style.color=c;clearTimeout(msgTimer);msgTimer=setTimeout(()=>msg.textContent='',ms)}
+function mat(color,emissive=0){return new THREE.MeshStandardMaterial({color,roughness:.55,metalness:.15,emissive,emissiveIntensity:.25})}
+function makeCharacter(hero,isPlayer=false){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.8,.7),mat(hero.color));body.position.y=1.8;g.add(body);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.48,18,14),mat(hero.color));head.position.y=3.05;g.add(head);
+ const legGeo=new THREE.BoxGeometry(.38,1.1,.42),armGeo=new THREE.BoxGeometry(.32,1.2,.32);
+ [-.28,.28].forEach(x=>{const l=new THREE.Mesh(legGeo,mat(hero.color));l.position.set(x,.7,0);g.add(l)});
+ [-.72,.72].forEach((x,idx)=>{const a=new THREE.Mesh(armGeo,mat(hero.color));a.position.set(x,1.9,0);a.rotation.z=idx?-.18:.18;g.add(a)});
+ const sw=currentSword();
+ const blade=new THREE.Mesh(new THREE.BoxGeometry(.14,sw.range,.18),mat(sw.color,sw.color));blade.position.set(.82,2.0,-.3);blade.rotation.z=-.35;g.add(blade);
+ g.userData={hero,isPlayer,hp:100,alive:true,attack:0,dash:0,power:0,shoot:0,blade,range:sw.range,damage:sw.damage,vel:new THREE.Vector3(),target:null,shield:0};
+ scene.add(g);return g
+}
+function init(){
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x86c7ff);scene.fog=new THREE.Fog(0x86c7ff,28,90);
+ camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,200);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;document.getElementById('game').appendChild(renderer.domElement);
+ const hemi=new THREE.HemisphereLight(0xffffff,0x334466,1.7);scene.add(hemi);
+ const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(12,20,8);sun.castShadow=true;scene.add(sun);
+ const ground=new THREE.Mesh(new THREE.CircleGeometry(30,64),new THREE.MeshStandardMaterial({color:0x4abf55,roughness:.9}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(18,18.5,64),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,opacity:.32}));ring.rotation.x=-Math.PI/2;ring.position.y=.02;scene.add(ring);
+ for(let i=0;i<12;i++){const b=new THREE.Mesh(new THREE.BoxGeometry(2,rand(2,6),2),mat(0x6c7aa7));const a=i/12*Math.PI*2;b.position.set(Math.cos(a)*35,b.geometry.parameters.height/2,Math.sin(a)*35);scene.add(b)}
+ clock=new THREE.Clock();
+}
+function rand(a,b){return a+Math.random()*(b-a)}
+function startGame(){
+ if(!scene)init();
+ running=true;document.getElementById('menu').style.display='none';document.getElementById('end').style.display='none';
+ [player,...npcs].forEach(o=>o&&scene.remove(o));npcs=[];shots.forEach(o=>scene.remove(o));shots=[];effects.forEach(o=>scene.remove(o));effects=[];
+ const h=heroes[selectedHero];player=makeCharacter(h,true);player.position.set(0,0,12);
+ const others=heroes.filter((_,i)=>i!==selectedHero);
+ for(let i=0;i<5;i++){const n=makeCharacter(others[i%others.length],false);const a=i/5*Math.PI*2;n.position.set(Math.cos(a)*11,0,Math.sin(a)*11);n.userData.hp=75+Math.floor(Math.random()*25);npcs.push(n)}
+ ball=new THREE.Mesh(new THREE.SphereGeometry(.55,24,18),new THREE.MeshStandardMaterial({color:0xff1938,emissive:0xff1938,emissiveIntensity:1.3,roughness:.25}));ball.position.set(0,.7,0);ball.userData={vel:new THREE.Vector3(rand(-5,5),0,7),owner:null};scene.add(ball);
+ updateHud();showMessage('FIGHT!',800,'#ffd54a');clock.start();animate()
+}
+function updateHud(){if(!player)return;heroHud.textContent=heroes[selectedHero].name;swordHud.textContent='Sword: '+currentSword().name;coinsHud.textContent='Coins: '+save.coins;npcHud.textContent='NPCs: '+npcs.filter(n=>n.userData.alive).length;hpHud.textContent='HP: '+Math.max(0,Math.round(player.userData.hp))}
+function nearestNpc(){let best=null,d=1e9;npcs.forEach(n=>{if(!n.userData.alive)return;const nd=n.position.distanceTo(player.position);if(nd<d){d=nd;best=n}});return best}
+function slash(ch){
+ if(!ch.userData.alive||ch.userData.attack>0)return;ch.userData.attack=.55;ch.userData.blade.rotation.z=-1.2;setTimeout(()=>{if(ch.userData.blade)ch.userData.blade.rotation.z=-.35},150);
+ const targets=ch.userData.isPlayer?npcs:[player];
+ targets.forEach(t=>{if(t.userData.alive&&t.position.distanceTo(ch.position)<ch.userData.range){damage(t,ch.userData.damage)}})
+ if(ball.position.distanceTo(ch.position)<ch.userData.range+1){const tgt=ch.userData.isPlayer?nearestNpc():player;if(tgt){const dir=tgt.position.clone().sub(ch.position).normalize();ball.userData.vel.copy(dir.multiplyScalar(14+ch.userData.damage*.12));ball.userData.owner=ch}}
+}
+function damage(t,d){if(t.userData.shield>0)return;t.userData.hp-=d;if(t.userData.hp<=0){t.userData.alive=false;t.visible=false;if(t!==player){save.coins+=25;persist()}updateHud()}}
+function dash(ch){if(!ch.userData.alive||ch.userData.dash>0)return;ch.userData.dash=2;const dir=new THREE.Vector3();if(ch===player){dir.set(joy.x+(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0),0,joy.y+(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0));if(dir.lengthSq()<.01)camera.getWorldDirection(dir)}else dir.copy(player.position).sub(ch.position);dir.y=0;dir.normalize();ch.position.add(dir.multiplyScalar(4))}
+function power(ch){
+ if(!ch.userData.alive||ch.userData.power>0)return;ch.userData.power=5;const id=ch.userData.hero.id;
+ if(id==='galaxy'){ch.position.copy(ball.position).add(new THREE.Vector3(0,0,2))}
+ else if(id==='yin'){ball.userData.vel.multiplyScalar(-1)}
+ else if(id==='angel'){ch.userData.shield=3}
+ else if(id==='ninja'){dash(ch);setTimeout(()=>dash(ch),180)}
+ else if(id==='light'){ball.userData.vel.multiplyScalar(1.5)}
+ else shoot(ch)
+}
+function shoot(ch){
+ if(!ch.userData.alive||ch.userData.shoot>0)return;ch.userData.shoot=1.8;const tgt=ch.userData.isPlayer?nearestNpc():player;if(!tgt)return;
+ const m=new THREE.Mesh(new THREE.SphereGeometry(.22,14,10),new THREE.MeshStandardMaterial({color:ch.userData.hero.color,emissive:ch.userData.hero.color,emissiveIntensity:1.2}));
+ m.position.copy(ch.position).add(new THREE.Vector3(0,2,0));m.userData={vel:tgt.position.clone().sub(m.position).normalize().multiplyScalar(18),owner:ch,life:3,damage:20};scene.add(m);shots.push(m)
+}
+function updatePlayer(dt){
+ const x=joy.x+(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0),z=joy.y+(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0);
+ const move=new THREE.Vector3(x,0,z);if(move.lengthSq()>.01){move.normalize().multiplyScalar(player.userData.hero.speed*dt);player.position.add(move);player.rotation.y=Math.atan2(move.x,move.z)}
+ if(player.position.length()>25)player.position.setLength(25)
+}
+function updateNpc(n,dt){
+ if(!n.userData.alive)return;const target=ball.position.distanceTo(n.position)<8?ball.position:player.position;const dir=target.clone().sub(n.position);dir.y=0;
+ if(dir.length()>2){dir.normalize();n.position.add(dir.multiplyScalar(n.userData.hero.speed*.62*dt));n.rotation.y=Math.atan2(dir.x,dir.z)}
+ if(n.position.distanceTo(ball.position)<n.userData.range+1&&Math.random()<.06)slash(n);
+ if(n.position.distanceTo(player.position)<n.userData.range&&Math.random()<.03)slash(n);
+ if(Math.random()<.004)shoot(n);if(Math.random()<.002)power(n)
+}
+function updateBall(dt){
+ ball.position.add(ball.userData.vel.clone().multiplyScalar(dt));ball.position.y=.7;
+ if(ball.position.length()>27){const normal=ball.position.clone().setY(0).normalize();ball.userData.vel.reflect(normal);ball.position.setLength(27)}
+ if(player.userData.alive&&ball.position.distanceTo(player.position)<1.3){damage(player,24);ball.userData.vel.multiplyScalar(-1)}
+ npcs.forEach(n=>{if(n.userData.alive&&ball.position.distanceTo(n.position)<1.3){damage(n,24);ball.userData.vel.multiplyScalar(-1)}})
+}
+function animate(){
+ if(!running)return;requestAnimationFrame(animate);const dt=Math.min(.033,clock.getDelta());
+ [player,...npcs].forEach(c=>{if(!c)return;['attack','dash','power','shoot','shield'].forEach(k=>c.userData[k]=Math.max(0,c.userData[k]-dt))});
+ updatePlayer(dt);npcs.forEach(n=>updateNpc(n,dt));updateBall(dt);
+ shots.forEach(s=>{s.position.add(s.userData.vel.clone().multiplyScalar(dt));s.userData.life-=dt;const targets=s.userData.owner===player?npcs:[player];targets.forEach(t=>{if(t.userData.alive&&s.visible&&s.position.distanceTo(t.position)<1){damage(t,s.userData.damage);s.visible=false;s.userData.life=0}})});shots=shots.filter(s=>{if(s.userData.life<=0){scene.remove(s);return false}return true});
+ const camOffset=new THREE.Vector3(0,6,10);const behind=camOffset.applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y);camera.position.lerp(player.position.clone().add(behind),.12);camera.lookAt(player.position.clone().add(new THREE.Vector3(0,2,0)));
+ updateHud();if(!player.userData.alive)endGame(false);else if(npcs.every(n=>!n.userData.alive))endGame(true);
+ renderer.render(scene,camera)
+}
+function endGame(win){if(!running)return;running=false;document.getElementById('end').style.display='flex';document.getElementById('endTitle').textContent=win?'YOU WIN':'YOU LOST';document.getElementById('endText').textContent=win?'You beat all NPCs and earned 75 bonus coins.':'Try again or buy a stronger sword.';if(win){save.coins+=75;persist()}}
+function restartGame(){startGame()}
+function backToMenu(){document.getElementById('end').style.display='none';document.getElementById('menu').style.display='flex';renderMenu()}
+document.getElementById('play').onclick=startGame;document.getElementById('attack').onpointerdown=()=>slash(player);document.getElementById('dash').onpointerdown=()=>dash(player);document.getElementById('power').onpointerdown=()=>power(player);document.getElementById('shoot').onpointerdown=()=>shoot(player);
+addEventListener('keydown',e=>{keys[e.key]=true;if(!running)return;if(e.code==='Space'){e.preventDefault();slash(player)}if(e.key==='Shift')dash(player);if(e.key.toLowerCase()==='e')power(player);if(e.key.toLowerCase()==='q')shoot(player)});addEventListener('keyup',e=>keys[e.key]=false);
+const joyZone=document.getElementById('joy'),base=document.getElementById('base'),knob=document.getElementById('knob');let pid=null,sx=0,sy=0;
+joyZone.onpointerdown=e=>{pid=e.pointerId;joyZone.setPointerCapture(pid);const r=joyZone.getBoundingClientRect();sx=e.clientX-r.left;sy=e.clientY-r.top;base.style.display=knob.style.display='block';base.style.left=sx-60+'px';base.style.top=sy-60+'px';knob.style.left=sx-28+'px';knob.style.top=sy-28+'px'};
+joyZone.onpointermove=e=>{if(e.pointerId!==pid)return;const r=joyZone.getBoundingClientRect();let dx=e.clientX-r.left-sx,dz=e.clientY-r.top-sy,m=Math.hypot(dx,dz);if(m>45){dx=dx/m*45;dz=dz/m*45}joy={x:dx/45,y:dz/45};knob.style.left=sx+dx-28+'px';knob.style.top=sy+dz-28+'px'};
+function endJoy(e){if(e.pointerId!==pid)return;pid=null;joy={x:0,y:0};base.style.display=knob.style.display='none'}joyZone.onpointerup=endJoy;joyZone.onpointercancel=endJoy;
+addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+renderMenu();
+</script>
+</body>
+</html>
